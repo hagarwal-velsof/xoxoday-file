@@ -19,7 +19,7 @@ class FileUploadController extends Controller
         if(!isset($params['name'])){
             $params['name'] = '';
         }
-        
+
         if(!isset($params['email'])){
             $params['email'] = '';
         }
@@ -103,13 +103,13 @@ class FileUploadController extends Controller
                 if ($file_entry) {
                     $sms = new Sms();
 
-                    $country = '91';
+                    $country = Config('xofile.xomobile_country_code');
 
                     $variables = array(
                         '1' => $otp,
                     );
 
-                    // $sms->postSmsRequest($country, $params['mobile'], Config('xofile.sms_message_otp'), $variables);
+                    $sms->postSmsRequest($country, $params['mobile'], Config('xofile.sms_message_otp'), $variables);
                     $filePath = $request->file('file')->storeAs($upload_path, $filename);
                     $reponse_array = array('response' => $response_no);
                     echo json_encode($reponse_array);
