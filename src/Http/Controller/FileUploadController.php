@@ -3,6 +3,7 @@
 namespace Xoxoday\Fileupload\Http\Controller;
 
 use Config;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Xoxoday\Fileupload\Models\Xofile;
@@ -14,22 +15,24 @@ class FileUploadController extends Controller
     // function to add user and file entry in the database and send a OTP sms to the mobile shared in the params
     public function uploadFile(Request $request)
     {
+
         $params = $request->post();
 
-        if(!isset($params['name'])){
+        if (!isset($params['name'])) {
             $params['name'] = '';
         }
 
-        if(!isset($params['email'])){
+        if (!isset($params['email'])) {
             $params['email'] = '';
         }
-        
-        
+
+        $log_name = Config('xofile.xofile_log_name');
 
         if (isset($params['mobile']) && $params['mobile'] != '' && $request->file()) {
             try {
                 $user_exist = Xouser::where('mobile', $params['mobile'])->first();
             } catch (QueryException $ex) {
+                Log::channel($log_name)->info(date('Y-m-d H:i:s') . ':: FileUploadController - Fetching of user Failed by phone number :: SQL Error code' . $ex->errorInfo[1] . ' -SQL Error Message' . $ex->getmessage());
                 $reponse_array = array('response' => 'Request Failed');
                 echo json_encode($reponse_array);
                 die();
@@ -37,7 +40,7 @@ class FileUploadController extends Controller
 
             $user_id = '';
 
-            //checking if user exist 
+            //checking if user exist
             if ($user_exist) {
 
                 $user_id = $user_exist['id'];
@@ -45,6 +48,7 @@ class FileUploadController extends Controller
                     //updating user details
                     $user_result = Xouser::where('mobile', $params['mobile'])->update(['email' => $params['email'], 'name' => $params['name']]);
                 } catch (QueryException $ex) {
+                    Log::channel($log_name)->info(date('Y-m-d H:i:s') . ':: FileUploadController - Failed to update user details :: SQL Error code' . $ex->errorInfo[1] . ' -SQL Error Message' . $ex->getmessage());
                     $reponse_array = array('response' => 'Request Failed');
                     echo json_encode($reponse_array);
                     die();
@@ -59,6 +63,7 @@ class FileUploadController extends Controller
                     ]);
 
                 } catch (QueryException $ex) {
+                    Log::channel($log_name)->info(date('Y-m-d H:i:s') . ':: FileUploadController - Failed to create user :: SQL Error code' . $ex->errorInfo[1] . ' -SQL Error Message' . $ex->getmessage());
                     $reponse_array = array('response' => 'Request Failed');
                     echo json_encode($reponse_array);
                     die();
@@ -70,15 +75,19 @@ class FileUploadController extends Controller
 
             $file = explode('.', $filename);
 
-            $ext = $file[1];
+            $file_mime = $request->file->getMimeType();
 
-            $allowed_ext = Config('xofile.xoallowed_file_types');
+            $file_mime = explode('/', $file_mime);
+
+            $ext = $file_mime[1];
+
+            $allowed_ext = Config('xofile.xoallowed_mime_ext');
 
             $allowed_ext = explode(',', $allowed_ext);
 
             $upload_path = Config('xofile.xostorage_folder');
 
-            if (in_array($ext, $allowed_ext)) {
+            if (in_array($ext, $allowed_ext) && $file_mime[0] == Config('xofile.xoallowed_mime_type')) {
 
                 $response_no = uniqid();
 
@@ -97,7 +106,10 @@ class FileUploadController extends Controller
                     ]);
 
                 } catch (QueryException $ex) {
-                    die('Request Failed');
+                    Log::channel($log_name)->info(date('Y-m-d H:i:s') . ':: FileUploadController - Failed to create file entry :: SQL Error code' . $ex->errorInfo[1] . ' -SQL Error Message' . $ex->getmessage());
+                    $reponse_array = array('response' => 'Request Failed');
+                    echo json_encode($reponse_array);
+                    die();
                 }
 
                 if ($file_entry) {
@@ -109,7 +121,7 @@ class FileUploadController extends Controller
                         '1' => $otp,
                     );
 
-                    $sms->postSmsRequest($country, $params['mobile'], Config('xofile.sms_message_otp'), $variables);
+                    // $sms->postSmsRequest($country, $params['mobile'], Config('xofile.sms_message_otp'), $variables);
                     $filePath = $request->file('file')->storeAs($upload_path, $filename);
                     $reponse_array = array('response' => $response_no);
                     echo json_encode($reponse_array);
@@ -129,8 +141,7 @@ class FileUploadController extends Controller
         die();
     }
 
-
-    //function to generate random n difit OTP 
+    //function to generate random n difit OTP
     private function generateUniqueNumber($length = 4)
     {
         $input = '0123456789'; //Allowed Char List
@@ -142,8 +153,6 @@ class FileUploadController extends Controller
         }
         return $random_string;
     }
-
-
 
     //function to verify OTP with respect the response no sent in the API parameters
     public function verifyOtp(Request $request)
