@@ -1,0 +1,19 @@
+{
+    "name": "xoxoday/fileupload",
+    "description": "This package is used to store files, generate OTP and OTP verification.",
+    "autoload": {
+        "psr-4": {
+            "Xoxoday\\Fileupload\\": "src/"
+        }
+    },
+    "require": {
+        "xoxoday/sms": "1.2"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Xoxoday\\Fileupload\\FileUploadServiceProvider"
+            ]
+        }
+    }
+}
