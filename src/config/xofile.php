@@ -9,4 +9,10 @@ return [
     'xofile_log_name' => env('XOFILE_LOG_NAME', 'sql_log'),
     'sms_message_otp' => env('SMS_MESSAGE_OTP', 'Your OTP for login is {{1}} for Golfer\'s Shot
     Powered by Xoxoday'),
+
+    'xodigital_ocean_space_key' => env('XODIGITAL_OCEAN_SPACES_KEY', ''),
+    'xodigital_ocean_space_secret' => env('XODIGITAL_OCEAN_SPACES_SECRET', ''),
+    'xodigital_ocean_space_endpoint' => env('XODIGITAL_OCEAN_SPACES_ENDPOINT', ''),
+    'xodigital_ocean_space_region' => env('XODIGITAL_OCEAN_SPACES_REGION', ''),
+    'xodigital_ocean_space_bucket' => env('XODIGITAL_OCEAN_SPACES_BUCKET', ''),
 ];

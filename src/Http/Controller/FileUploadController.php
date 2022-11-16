@@ -2,12 +2,17 @@
 
 namespace Xoxoday\Fileupload\Http\Controller;
 
+use Aws\S3\S3Client;
+use Aws\S3\Exception\S3Exception;
 use Config;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\File;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Storage;
 use Xoxoday\Fileupload\Models\Xofile;
 use Xoxoday\Fileupload\Models\Xouser;
+use Illuminate\Support\Facades\Log;
 use Xoxoday\Sms\Sms;
 
 class FileUploadController extends Controller
@@ -95,12 +100,43 @@ class FileUploadController extends Controller
 
                 $otp = $this->generateUniqueNumber(Config('xofile.xostorage_otp_length'));
 
+                $result = '';
+
+                try{
+                    $client = new S3Client([
+                        'version' => 'latest',
+                        'region' => Config('xofile.xodigital_ocean_space_region'),
+                        'endpoint' => Config('xofile.xodigital_ocean_space_endpoint'),
+                        'use_path_style_endpoint' => false,
+                        'credentials' => [
+                            'key' => Config('xofile.xodigital_ocean_space_key'),
+                            'secret' => Config('xofile.xodigital_ocean_space_secret'),
+                        ],
+                    ]);
+    
+                    $result = $client->putObject([
+                        'Bucket' => Config('xofile.xodigital_ocean_space_bucket'),
+                        'Key' => $filename,
+                        'Body' => $request->file('file'),
+                        'ACL' => 'private',
+                    ]);
+                }catch(S3Exception $e){
+                    Log::channel($log_name)->info(date('Y-m-d H:i:s') . ':: FileUploadController - Failed to save file on Digital Ocean ::' . json_encode($e->getMessage()));
+                    $reponse_array = array('response' => 'Request Failed');
+                    echo json_encode($reponse_array);
+                    die();
+                }
+
+                
+
+                if(isset($result['ObjectURL']) ){
+                    
                 try {
                     $file_entry = Xofile::create([
                         'xouser_id' => $user_id,
                         'response_no' => $response_no,
                         'file_name' => $filename,
-                        'path' => $file_path,
+                        'path' => $result['ObjectURL'],
                         'otp' => $otp,
                         'status' => 0, //default status as pending
                     ]);
@@ -121,12 +157,16 @@ class FileUploadController extends Controller
                         '1' => $otp,
                     );
 
+                   
+
                     // $sms->postSmsRequest($country, $params['mobile'], Config('xofile.sms_message_otp'), $variables);
-                    $filePath = $request->file('file')->storeAs($upload_path, $filename);
+                    // $filePath = $request->file('file')->storeAs($upload_path, $filename);
                     $reponse_array = array('response' => $response_no);
                     echo json_encode($reponse_array);
                     die();
                 }
+                }
+
 
             } else {
                 $reponse_array = array('response' => 'File type not allowed');
